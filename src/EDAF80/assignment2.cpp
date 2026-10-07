@@ -43,7 +43,9 @@ void
 edaf80::Assignment2::run()
 {
 	// Load the sphere geometry
-	auto const shape = parametric_shapes::createCircleRing(2.0f, 0.75f, 40u, 4u);
+	// auto const shape = parametric_shapes::createSphere(0.15f, 10u, 10u);
+	auto const shape =
+		parametric_shapes::createTorus(0.3f, 0.1f, 20u, 10u);
 	if (shape.vao == 0u)
 		return;
 
@@ -111,7 +113,7 @@ edaf80::Assignment2::run()
 
 	// Set the default tensions value; it can always be changed at runtime
 	// through the "Scene Controls" window.
-	float catmull_rom_tension = 0.0f;
+	float catmull_rom_tension = 0.5f;
 
 	// Set whether the default interpolation algorithm should be the linear one;
 	// it can always be changed at runtime through the "Scene Controls" window.
@@ -216,15 +218,57 @@ edaf80::Assignment2::run()
 		if (interpolate) {
 			//! \todo Interpolate the movement of a shape between various
 			//!        control points.
+			auto const point_count =
+				static_cast<unsigned int>(control_point_locations.size());
+
+			unsigned int const i =
+				static_cast<unsigned int>(elapsed_time_s) % point_count;
+			
+			float const x =
+				elapsed_time_s - static_cast<float>(
+					static_cast<unsigned int>(elapsed_time_s)
+				);
+			
 			if (use_linear) {
 				//! \todo Compute the interpolated position
 				//!       using the linear interpolation.
+				unsigned int const next =
+					(i + 1u) % point_count;
+
+				glm::vec3 const new_position =
+					interpolation::evalLERP(
+						control_point_locations[i],
+						control_point_locations[next],
+						x
+					);
+
+				circle_rings_transform_ref.SetTranslate(new_position);
 			}
 			else {
 				//! \todo Compute the interpolated position
 				//!       using the Catmull-Rom interpolation;
 				//!       use the `catmull_rom_tension`
 				//!       variable as your tension argument.
+				unsigned int const previous =
+					(i + point_count - 1u) % point_count;
+
+				unsigned int const next =
+					(i + 1u) % point_count;
+
+				unsigned int const next_next =
+					(i + 2u) % point_count;
+
+				glm::vec3 const new_position =
+					interpolation::evalCatmullRom(
+						control_point_locations[previous],
+						control_point_locations[i],
+						control_point_locations[next],
+						control_point_locations[next_next],
+						catmull_rom_tension,
+						x
+					);
+
+				circle_rings_transform_ref.SetTranslate(new_position);
 			}
 		}
 

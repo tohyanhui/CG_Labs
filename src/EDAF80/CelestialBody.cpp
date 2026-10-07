@@ -26,9 +26,48 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// milliseconds, the following would have been used:
 	// auto const elapsed_time_ms = std::chrono::duration<float, std::milli>(elapsed_time).count();
 
-	_body.spin.rotation_angle = -glm::half_pi<float>() / 2.0f;
+	_body.spin.rotation_angle += _body.spin.speed * elapsed_time_s;
+	
+	_body.orbit.rotation_angle += _body.orbit.speed * elapsed_time_s;
+	
+	glm::mat4 const S = glm::scale(
+		glm::mat4(1.0f),
+		_body.scale
+	);
+	
+	glm::mat4 const R1_s = glm::rotate(
+		glm::mat4(1.0f),
+		_body.spin.rotation_angle,
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	);
+	
+	glm::mat4 const R2_s = glm::rotate(
+		glm::mat4(1.0f),
+		_body.spin.axial_tilt,
+		glm::vec3(0.0f, 0.0f, 1.0f)
+	);
+	
+	glm::mat4 const R1_o = glm::rotate(
+		glm::mat4(1.0f),
+		_body.orbit.rotation_angle,
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	);
+	
+	glm::mat4 const R2_o = glm::rotate(
+		glm::mat4(1.0f),
+		_body.orbit.inclination,
+		glm::vec3(0.0f, 0.0f, 1.0f)
+	);
+	
+	glm::mat4 const T_o = glm::translate(
+		glm::mat4(1.0f),
+		glm::vec3(_body.orbit.radius, 0.0f, 0.0f)
+	);
 
-	glm::mat4 world = parent_transform;
+	glm::mat4 world = parent_transform * R2_o * R1_o * T_o * R2_s * R1_s * S;
+	
+	glm::mat4 const children_transform =
+		parent_transform * R2_o * R1_o * T_o * R2_s;
 
 	if (show_basis)
 	{
@@ -42,8 +81,28 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// of the node is just the identity matrix and we can forward the whole
 	// world matrix.
 	_body.node.render(view_projection, world);
+	
+	if (_ring.is_set)
+	{
+		glm::mat4 const ring_scale = glm::scale(
+			glm::mat4(1.0f),
+			glm::vec3(_ring.scale.x, _ring.scale.y, 1.0f)
+		);
 
-	return parent_transform;
+		glm::mat4 const ring_rotation = glm::rotate(
+			glm::mat4(1.0f),
+			glm::half_pi<float>(),
+			glm::vec3(1.0f, 0.0f, 0.0f)
+		);
+
+		glm::mat4 const ring_world =
+			parent_transform * R2_o * R1_o * T_o * R2_s
+			* ring_rotation * ring_scale;
+
+		_ring.node.render(view_projection, ring_world);
+	}
+
+	return children_transform;
 }
 
 void CelestialBody::add_child(CelestialBody* child)

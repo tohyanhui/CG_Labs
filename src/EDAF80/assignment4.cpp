@@ -62,12 +62,89 @@ edaf80::Assignment4::run()
 	// Todo: Insert the creation of other shader programs.
 	//       (Check how it was done in assignment 3.)
 	//
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram(
+		"Skybox",
+		{
+			{ ShaderType::vertex, "EDAF80/skybox.vert" },
+			{ ShaderType::fragment, "EDAF80/skybox.frag" }
+		},
+		skybox_shader
+	);
+
+	if (skybox_shader == 0u) {
+		LogError("Failed to load skybox shader");
+		return;
+	}
+	
+	GLuint water_shader = 0u;
+	program_manager.CreateAndRegisterProgram(
+		"Water",
+		{
+			{ ShaderType::vertex, "EDAF80/water.vert" },
+			{ ShaderType::fragment, "EDAF80/water.frag" }
+		},
+		water_shader
+	);
+
+	if (water_shader == 0u) {
+		LogError("Failed to load water shader");
+		return;
+	}
 
 	float elapsed_time_s = 0.0f;
+	
+	auto const set_uniforms = [&elapsed_time_s, &camera_position](GLuint program)
+	{
+		glUniform1f(
+			glGetUniformLocation(program, "elapsed_time_s"),
+			elapsed_time_s
+		);
 
+		glUniform3fv(
+			glGetUniformLocation(program, "camera_position"),
+			1,
+			glm::value_ptr(camera_position)
+		);
+	};
+
+	GLuint cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("cubemaps/NissiBeach2/posx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posz.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negz.jpg")
+	);
+	
+	GLuint normal_texture = bonobo::loadTexture2D(
+		config::resources_path("textures/waves.png")
+	);
+	
 	//
 	// Todo: Load your geometry
 	//
+	auto skybox_shape =
+		parametric_shapes::createSphere(200.0f, 100u, 100u);
+
+	if (skybox_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the skybox");
+		return;
+	}
+
+	Node skybox;
+	skybox.set_geometry(skybox_shape);
+	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+	skybox.set_program(&skybox_shader);
+	
+	auto const water_shape =
+		parametric_shapes::createQuad(100.0f, 100.0f, 1000u, 1000u);
+
+	Node water;
+	water.set_geometry(water_shape);
+	water.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+	water.add_texture("normal_texture", normal_texture, GL_TEXTURE_2D);
+	water.set_program(&water_shader, set_uniforms);
 
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -150,6 +227,10 @@ edaf80::Assignment4::run()
 			//
 			// Todo: Render all your geometry here.
 			//
+			skybox.get_transform().SetTranslate(camera_position);
+			
+			skybox.render(mCamera.GetWorldToClipMatrix());
+			water.render(mCamera.GetWorldToClipMatrix());
 		}
 
 

@@ -15,6 +15,7 @@ res.zip
 # Application produced files
 imgui.ini
 log.txt
+.DS_Store
 
 # Visual Studio Files
 .vs/
